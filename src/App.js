@@ -15,16 +15,13 @@ function App() {
     
     try {
       // Send to backend for processing
-      const formData = new FormData();
-      formData.append('image', imageFile);
-      
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-const cleanUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-const response = await fetch(`${cleanUrl}/process-image`, {
-        method: 'POST',
-        body: formData,
-      });
+const formData = new FormData();
+formData.append('image', imageFile);
+
+const response = await fetch('https://autorig-backend-production.up.railway.app/process-image', {
+  method: 'POST',
+  body: formData,
+});
       
       if (!response.ok) {
         throw new Error('Processing failed');
@@ -95,4 +92,5 @@ const response = await fetch(`${cleanUrl}/process-image`, {
 }
 
 export default App;
+
 
