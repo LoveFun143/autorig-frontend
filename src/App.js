@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import ImageUploader from './components/ImageUploader';
 import ImageAnalyzer from './components/ImageAnalyzer';
+import CharacterPreview from './components/CharacterPreview';
 
 function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -47,7 +48,13 @@ function App() {
       const result = await response.json();
       setSegmentedLayers(result.layers);
       setRiggedModel(result.riggedModel);
-      
+        <CharacterPreview
+    originalImage={uploadedImage}
+    segmentedLayers={segmentedLayers}
+    riggedModel={riggedModel}
+    analysisResults={analysisResults}
+  />
+)}
       console.log('✅ Complete processing finished!');
       
     } catch (error) {
@@ -213,4 +220,5 @@ const renderAnalysisDetails = () => {
 }
 
 export default App;
+
 
