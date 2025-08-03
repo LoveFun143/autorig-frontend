@@ -1,51 +1,231 @@
 // src/components/ImageAnalyzer.js
+import TrueObjectDetector from './TrueObjectDetector';
+import CharacterFeatureDetector from './CharacterFeatureDetector';
+
 class ImageAnalyzer {
   constructor() {
     this.canvas = document.createElement('canvas');
     this.ctx = this.canvas.getContext('2d');
+    this.objectDetector = new TrueObjectDetector();
+    this.featureDetector = new CharacterFeatureDetector();
   }
 
   async analyzeImage(imageFile) {
-    console.log('🔍 Starting real image analysis...');
+    console.log('🔍 Starting TRUE image analysis with AI...');
     
     try {
       // Load image into canvas
       const imageData = await this.loadImageToCanvas(imageFile);
       
-      // Run multiple analysis methods
-      const results = {
+      // Create image element for AI models
+      const imageElement = await this.createImageElement(imageFile);
+      
+      console.log('🧠 Running AI object detection...');
+      
+      // Step 1: Real object detection
+      const objectDetections = await this.objectDetector.detectObjects(imageElement);
+      
+      console.log('🎭 Running character feature detection...');
+      
+      // Step 2: Character-specific analysis
+      const characterFeatures = await this.featureDetector.detectCharacterFeatures(imageElement, objectDetections);
+      
+      // Step 3: Combine with basic analysis
+      const basicAnalysis = {
         basicInfo: this.getBasicImageInfo(imageData),
         colorAnalysis: this.analyzeColors(imageData),
-        complexityScore: this.calculateComplexity(imageData),
-        shapeDetection: this.detectBasicShapes(imageData),
-        featurePositions: this.detectFeaturePositions(imageData),
-        styleClassification: this.classifyStyle(imageData),
-        detailLevel: this.assessDetailLevel(imageData)
+        complexityScore: this.calculateComplexity(imageData)
       };
       
-      console.log('✅ Image analysis complete:', results);
+      // Step 4: Create comprehensive results
+      const results = {
+        ...basicAnalysis,
+        objectDetections,
+        characterFeatures,
+        trueRecognition: this.createTrueRecognition(objectDetections, characterFeatures, basicAnalysis),
+        aiAnalysisUsed: true
+      };
+      
+      console.log('✅ TRUE AI analysis complete:', results);
       return results;
       
     } catch (error) {
-      console.error('❌ Image analysis failed:', error);
+      console.error('❌ TRUE AI analysis failed:', error);
       return this.createFallbackAnalysis(imageFile);
     }
   }
 
+  async createImageElement(imageFile) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(imageFile);
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  createTrueRecognition(objectDetections, characterFeatures, basicAnalysis) {
+    console.log('🎯 Creating TRUE recognition summary...');
+    
+    const recognition = {
+      detectedObjects: [],
+      characterType: 'unknown',
+      styleDetected: 'unknown',
+      specialFeatures: [],
+      confidence: 0,
+      layerSuggestions: []
+    };
+    
+    let totalConfidence = 0;
+    let confidenceCount = 0;
+    
+    // Process object detections
+    if (objectDetections.people.length > 0) {
+      recognition.detectedObjects.push(`${objectDetections.people.length} person(s)`);
+      recognition.characterType = 'human';
+      totalConfidence += objectDetections.people[0].confidence;
+      confidenceCount++;
+      
+      console.log(`✅ TRUE DETECTION: ${objectDetections.people.length} person(s) detected`);
+    }
+    
+    if (objectDetections.animals.length > 0) {
+      objectDetections.animals.forEach(animal => {
+        recognition.detectedObjects.push(`${animal.type}`);
+        recognition.specialFeatures.push(`${animal.type}_features`);
+      });
+      
+      if (recognition.characterType === 'human') {
+        recognition.characterType = 'hybrid';
+      } else {
+        recognition.characterType = 'animal';
+      }
+      
+      totalConfidence += objectDetections.animals[0].confidence;
+      confidenceCount++;
+      
+      console.log(`✅ TRUE DETECTION: Animals detected - ${objectDetections.animals.map(a => a.type).join(', ')}`);
+    }
+    
+    if (objectDetections.clothing.length > 0) {
+      objectDetections.clothing.forEach(clothing => {
+        recognition.detectedObjects.push(`${clothing.type}`);
+        recognition.layerSuggestions.push(clothing.type);
+      });
+      
+      console.log(`✅ TRUE DETECTION: Clothing detected - ${objectDetections.clothing.map(c => c.type).join(', ')}`);
+    }
+    
+    if (objectDetections.accessories.length > 0) {
+      objectDetections.accessories.forEach(accessory => {
+        recognition.detectedObjects.push(`${accessory.type}`);
+        recognition.specialFeatures.push(accessory.type);
+        recognition.layerSuggestions.push(accessory.type);
+      });
+      
+      console.log(`✅ TRUE DETECTION: Accessories detected - ${objectDetections.accessories.map(a => a.type).join(', ')}`);
+    }
+    
+    // Process character features
+    if (characterFeatures.animeFeatures.hasAnimeStyle) {
+      recognition.styleDetected = 'anime';
+      totalConfidence += characterFeatures.animeFeatures.animeConfidence;
+      confidenceCount++;
+      
+      console.log(`✅ TRUE DETECTION: Anime style detected (${Math.round(characterFeatures.animeFeatures.animeConfidence * 100)}%)`);
+    }
+    
+    if (characterFeatures.facialFeatures.hasFace) {
+      recognition.layerSuggestions.push('face', 'eyes', 'mouth');
+      totalConfidence += characterFeatures.facialFeatures.confidence;
+      confidenceCount++;
+      
+      console.log(`✅ TRUE DETECTION: Face detected with ${characterFeatures.facialFeatures.faceCount} face(s)`);
+    }
+    
+    if (characterFeatures.specialFeatures.hasAccessories) {
+      recognition.specialFeatures.push('accessories');
+      console.log(`✅ TRUE DETECTION: Special accessories detected`);
+    }
+    
+    // Calculate overall confidence
+    recognition.confidence = confidenceCount > 0 ? totalConfidence / confidenceCount : 0;
+    
+    // Generate layer suggestions based on true detections
+    recognition.layerSuggestions = this.generateTrueLayerSuggestions(recognition, basicAnalysis);
+    
+    return recognition;
+  }
+
+  generateTrueLayerSuggestions(recognition, basicAnalysis) {
+    const layers = ['background']; // Always include background
+    
+    console.log('🎯 Generating layers based on TRUE detections...');
+    
+    // Add layers based on actual detections
+    if (recognition.characterType === 'human' || recognition.characterType === 'hybrid') {
+      layers.push('face', 'left_eye', 'right_eye', 'nose', 'mouth');
+      
+      if (recognition.styleDetected === 'anime') {
+        layers.push('anime_eyes', 'hair_front', 'hair_back');
+      } else {
+        layers.push('hair');
+      }
+    }
+    
+    if (recognition.characterType === 'animal' || recognition.characterType === 'hybrid') {
+      layers.push('animal_ears', 'animal_features');
+      
+      if (recognition.detectedObjects.includes('cat')) {
+        layers.push('cat_ears', 'whiskers');
+        console.log('🐱 TRUE CAT DETECTION: Adding cat-specific layers');
+      }
+    }
+    
+    // Add clothing layers based on actual detections
+    recognition.layerSuggestions.forEach(suggestion => {
+      if (!layers.includes(suggestion)) {
+        layers.push(suggestion);
+      }
+    });
+    
+    // Add body layers for human characters
+    if (recognition.characterType === 'human' || recognition.characterType === 'hybrid') {
+      if (basicAnalysis.basicInfo.isLargeImage) {
+        layers.push('torso', 'left_arm', 'right_arm', 'left_leg', 'right_leg');
+      } else {
+        layers.push('body', 'arms');
+      }
+    }
+    
+    // Add special feature layers
+    recognition.specialFeatures.forEach(feature => {
+      if (!layers.includes(feature)) {
+        layers.push(feature);
+      }
+    });
+    
+    console.log(`🎯 Generated ${layers.length} layers based on TRUE detections:`, layers);
+    
+    return layers;
+  }
+
+  // Keep existing basic analysis methods
   async loadImageToCanvas(imageFile) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(imageFile);
       
       img.onload = () => {
-        // Set canvas size to image size
         this.canvas.width = img.width;
         this.canvas.height = img.height;
-        
-        // Draw image to canvas
         this.ctx.drawImage(img, 0, 0);
-        
-        // Get pixel data
         const imageData = this.ctx.getImageData(0, 0, img.width, img.height);
         
         URL.revokeObjectURL(url);
@@ -83,40 +263,28 @@ class ImageAnalyzer {
   analyzeColors(data) {
     const { pixels } = data;
     const colorCounts = {};
-    const dominantColors = [];
     let totalBrightness = 0;
-    let colorVariation = 0;
     
-    // Sample every 4th pixel for performance
     for (let i = 0; i < pixels.length; i += 16) {
       const r = pixels[i];
       const g = pixels[i + 1];
       const b = pixels[i + 2];
       
-      // Calculate brightness
       const brightness = (r + g + b) / 3;
       totalBrightness += brightness;
       
-      // Group colors into ranges
       const colorKey = `${Math.floor(r/32)}-${Math.floor(g/32)}-${Math.floor(b/32)}`;
       colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
     }
-    
-    // Find dominant colors
-    const sortedColors = Object.entries(colorCounts)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5);
     
     const avgBrightness = totalBrightness / (pixels.length / 4);
     const uniqueColors = Object.keys(colorCounts).length;
     
     return {
-      dominantColors: sortedColors.map(([color, count]) => ({ color, count })),
       averageBrightness: avgBrightness,
       colorVariety: uniqueColors,
       isDark: avgBrightness < 100,
       isBright: avgBrightness > 180,
-      hasHighContrast: uniqueColors > 50,
       colorComplexity: uniqueColors > 100 ? 'high' : uniqueColors > 50 ? 'medium' : 'low'
     };
   }
@@ -124,244 +292,35 @@ class ImageAnalyzer {
   calculateComplexity(data) {
     const { pixels, width, height } = data;
     let edgeCount = 0;
-    let textureVariation = 0;
     
-    // Edge detection (simplified Sobel)
-    for (let y = 1; y < height - 1; y++) {
-      for (let x = 1; x < width - 1; x += 4) { // Sample every 4th pixel
+    for (let y = 1; y < height - 1; y += 4) {
+      for (let x = 1; x < width - 1; x += 4) {
         const idx = (y * width + x) * 4;
-        
-        // Get surrounding pixels
         const current = pixels[idx];
         const right = pixels[idx + 4];
         const down = pixels[idx + width * 4];
         
-        // Calculate gradients
         const gx = Math.abs(current - right);
         const gy = Math.abs(current - down);
         const gradient = gx + gy;
         
-        if (gradient > 30) { // Edge threshold
+        if (gradient > 30) {
           edgeCount++;
         }
-        
-        textureVariation += gradient;
       }
     }
     
     const totalSamples = Math.floor((width * height) / 16);
     const edgeRatio = edgeCount / totalSamples;
-    const avgTexture = textureVariation / totalSamples;
     
     return {
       edgeCount,
       edgeRatio,
-      textureVariation: avgTexture,
-      complexityScore: (edgeRatio * 100) + (avgTexture / 10),
+      complexityScore: edgeRatio * 100,
       isSimple: edgeRatio < 0.1,
       isDetailed: edgeRatio > 0.3,
       isHighlyDetailed: edgeRatio > 0.5
     };
-  }
-
-  detectBasicShapes(data) {
-    const { pixels, width, height } = data;
-    const shapes = {
-      triangularRegions: 0, // Potential ears
-      circularRegions: 0,   // Potential face/eyes
-      verticalLines: 0,     // Potential body/arms
-      horizontalLines: 0,   // Potential clothing lines
-      clusters: []
-    };
-    
-    // Simple shape detection by analyzing pixel clusters
-    const regionSize = 20; // 20x20 pixel regions
-    
-    for (let y = 0; y < height - regionSize; y += regionSize) {
-      for (let x = 0; x < width - regionSize; x += regionSize) {
-        const region = this.analyzeRegion(pixels, x, y, regionSize, width);
-        
-        if (region.hasTriangularPattern) {
-          shapes.triangularRegions++;
-          shapes.clusters.push({ x, y, type: 'triangular', confidence: region.confidence });
-        }
-        
-        if (region.hasCircularPattern) {
-          shapes.circularRegions++;
-          shapes.clusters.push({ x, y, type: 'circular', confidence: region.confidence });
-        }
-        
-        if (region.hasVerticalLines) {
-          shapes.verticalLines++;
-        }
-        
-        if (region.hasHorizontalLines) {
-          shapes.horizontalLines++;
-        }
-      }
-    }
-    
-    return shapes;
-  }
-
-  analyzeRegion(pixels, startX, startY, size, width) {
-    let verticalEdges = 0;
-    let horizontalEdges = 0;
-    let cornerIntensity = 0;
-    
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        const idx = ((startY + y) * width + (startX + x)) * 4;
-        const current = pixels[idx];
-        
-        // Check for edges
-        if (x < size - 1) {
-          const right = pixels[idx + 4];
-          if (Math.abs(current - right) > 30) verticalEdges++;
-        }
-        
-        if (y < size - 1) {
-          const down = pixels[idx + width * 4];
-          if (Math.abs(current - down) > 30) horizontalEdges++;
-        }
-        
-        // Check corners for triangular patterns
-        if ((x < 5 || x > size - 5) && (y < 5 || y > size - 5)) {
-          cornerIntensity += current;
-        }
-      }
-    }
-    
-    return {
-      hasTriangularPattern: verticalEdges > 10 && cornerIntensity > 2000,
-      hasCircularPattern: verticalEdges > 5 && horizontalEdges > 5 && verticalEdges < 20,
-      hasVerticalLines: verticalEdges > horizontalEdges * 2,
-      hasHorizontalLines: horizontalEdges > verticalEdges * 2,
-      confidence: Math.min((verticalEdges + horizontalEdges) / 20, 1)
-    };
-  }
-
-  detectFeaturePositions(data) {
-    const { width, height } = data;
-    
-    // Divide image into zones to detect feature positions
-    const zones = {
-      topThird: { y: 0, height: height / 3 },           // Hair, ears, hat area
-      middleThird: { y: height / 3, height: height / 3 }, // Face, accessories area  
-      bottomThird: { y: height * 2/3, height: height / 3 } // Body, clothing area
-    };
-    
-    return {
-      zones,
-      hasTopFeatures: this.hasSignificantActivity(data, zones.topThird),
-      hasMiddleFeatures: this.hasSignificantActivity(data, zones.middleThird),
-      hasBottomFeatures: this.hasSignificantActivity(data, zones.bottomThird),
-      estimatedFacePosition: this.estimateFacePosition(data),
-      estimatedBodyType: this.estimateBodyType(data)
-    };
-  }
-
-  hasSignificantActivity(data, zone) {
-    const { pixels, width } = data;
-    let activity = 0;
-    
-    for (let y = zone.y; y < zone.y + zone.height && y < data.height; y += 4) {
-      for (let x = 0; x < width; x += 4) {
-        const idx = (y * width + x) * 4;
-        const r = pixels[idx];
-        const g = pixels[idx + 1];
-        const b = pixels[idx + 2];
-        
-        // Look for non-background activity (non-uniform colors)
-        if (x > 0) {
-          const prevIdx = (y * width + x - 4) * 4;
-          const prevR = pixels[prevIdx];
-          const diff = Math.abs(r - prevR);
-          if (diff > 20) activity++;
-        }
-      }
-    }
-    
-    return activity > 100; // Threshold for "significant activity"
-  }
-
-  estimateFacePosition(data) {
-    const { width, height } = data;
-    
-    // Look for face-like patterns in upper 2/3 of image
-    const faceRegion = {
-      x: width * 0.2,
-      y: height * 0.1,
-      width: width * 0.6,
-      height: height * 0.4
-    };
-    
-    return {
-      region: faceRegion,
-      confidence: 0.7, // Default confidence
-      isPortrait: height > width * 1.2
-    };
-  }
-
-  estimateBodyType(data) {
-    const { width, height } = data;
-    const aspectRatio = width / height;
-    
-    if (aspectRatio < 0.6 && height > 400) {
-      return { type: 'fullBody', confidence: 0.8 };
-    } else if (aspectRatio < 1 && height > 200) {
-      return { type: 'halfBody', confidence: 0.7 };
-    } else {
-      return { type: 'portrait', confidence: 0.6 };
-    }
-  }
-
-  classifyStyle(data) {
-    const colorAnalysis = this.analyzeColors(data);
-    const complexity = this.calculateComplexity(data);
-    
-    let style = 'unknown';
-    let confidence = 0.5;
-    
-    // Simple style classification based on color and complexity
-    if (colorAnalysis.colorComplexity === 'high' && complexity.isHighlyDetailed) {
-      style = 'realistic';
-      confidence = 0.8;
-    } else if (colorAnalysis.averageBrightness > 150 && !complexity.isHighlyDetailed) {
-      style = 'anime';
-      confidence = 0.7;
-    } else if (colorAnalysis.colorVariety < 30) {
-      style = 'cartoon';
-      confidence = 0.6;
-    }
-    
-    return { style, confidence };
-  }
-
-  assessDetailLevel(data) {
-    const complexity = this.calculateComplexity(data);
-    const colors = this.analyzeColors(data);
-    const info = this.getBasicImageInfo(data);
-    
-    let level = 'basic';
-    let score = 0;
-    
-    // Score based on multiple factors
-    if (complexity.isHighlyDetailed) score += 3;
-    else if (complexity.isDetailed) score += 2;
-    else if (!complexity.isSimple) score += 1;
-    
-    if (colors.colorComplexity === 'high') score += 2;
-    else if (colors.colorComplexity === 'medium') score += 1;
-    
-    if (info.resolution === 'high') score += 2;
-    else if (info.resolution === 'medium') score += 1;
-    
-    if (score >= 6) level = 'professional';
-    else if (score >= 4) level = 'detailed';
-    else if (score >= 2) level = 'standard';
-    
-    return { level, score, maxScore: 7 };
   }
 
   createFallbackAnalysis(imageFile) {
@@ -375,24 +334,30 @@ class ImageAnalyzer {
       },
       colorAnalysis: {
         colorComplexity: 'medium',
-        averageBrightness: 128,
-        hasHighContrast: true
+        averageBrightness: 128
       },
       complexityScore: {
         complexityScore: 50,
         isDetailed: true
       },
-      shapeDetection: {
-        triangularRegions: 2,
-        circularRegions: 1
+      objectDetections: {
+        people: [{ type: 'person', confidence: 0.7 }],
+        totalDetections: 1,
+        fallback: true
       },
-      featurePositions: {
-        hasTopFeatures: true,
-        hasMiddleFeatures: true,
-        estimatedBodyType: { type: 'halfBody' }
+      characterFeatures: {
+        animeFeatures: { hasAnimeStyle: true, animeConfidence: 0.6 },
+        facialFeatures: { hasFace: true, faceCount: 1 },
+        characterType: { type: 'anime_character', isHuman: true }
       },
-      styleClassification: { style: 'anime', confidence: 0.6 },
-      detailLevel: { level: 'standard', score: 3 },
+      trueRecognition: {
+        detectedObjects: ['person'],
+        characterType: 'human',
+        styleDetected: 'anime',
+        confidence: 0.6,
+        layerSuggestions: ['background', 'face', 'hair', 'body', 'clothing']
+      },
+      aiAnalysisUsed: false,
       fallback: true
     };
   }
