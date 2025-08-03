@@ -51,21 +51,35 @@ function App() {
       
       const result = await response.json();
       console.log('📦 Backend response:', result);
+      console.log('📦 Layer details:', result.layers?.map(l => ({ id: l.id, type: l.type, hasData: !!l.data })));
       
       // If backend doesn't return layers, use the frontend-generated ones
       const layers = result.layers || frontendAnalysis.layers;
+      
+      // Ensure each layer has the image URL if it doesn't have data
+      const layersWithImage = layers.map(layer => ({
+        ...layer,
+        imageUrl: layer.data || layer.imageUrl || imageUrl
+      }));
+      
       const riggedModel = result.riggedModel || {
-        layers: frontendAnalysis.layers,
+        layers: layersWithImage,
         animations: ['blink', 'smile', 'headTurn', 'wave', 'earTwitch'],
         skeleton: frontendAnalysis.characterFeatures?.facialFeatures,
-        imageUrl: imageUrl  // Add the image URL to the rigged model
+        imageUrl: imageUrl
       };
       
-      setSegmentedLayers(layers);
+      // Add image URL to rigged model if not present
+      if (riggedModel && !riggedModel.imageUrl) {
+        riggedModel.imageUrl = imageUrl;
+      }
+      
+      setSegmentedLayers(layersWithImage);
       setRiggedModel(riggedModel);
       
-      console.log('📋 Final layers:', layers);
+      console.log('📋 Final layers:', layersWithImage);
       console.log('🎮 Final rigged model:', riggedModel);
+      console.log('🖼️ Image URL:', imageUrl);
       console.log('✅ Complete processing finished!');
       
     } catch (error) {
@@ -221,6 +235,19 @@ function App() {
                 processing={processing}
                 error={error}
               />
+              
+              {/* Fallback Image Preview if CharacterPreview doesn't show image */}
+              {uploadedImage && !processing && (
+                <div className="bg-white rounded-lg shadow-md p-4 text-center">
+                  <h3 className="text-sm text-gray-600 mb-2">Original Image:</h3>
+                  <img 
+                    src={uploadedImage} 
+                    alt="Uploaded avatar" 
+                    className="max-w-full h-auto mx-auto rounded"
+                    style={{ maxHeight: '300px' }}
+                  />
+                </div>
+              )}
 
               {/* Reset Button */}
               {!processing && (
