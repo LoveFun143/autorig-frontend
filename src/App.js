@@ -46,6 +46,7 @@ function App() {
       }
       
       const result = await response.json();
+      console.log('📦 Backend response:', result);
       setSegmentedLayers(result.layers);
       setRiggedModel(result.riggedModel);
       
