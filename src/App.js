@@ -19,7 +19,9 @@ function App() {
       formData.append('image', imageFile);
       
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiUrl}/process-image`, {
+     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const cleanUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+const response = await fetch(`${cleanUrl}/process-image`, {
         method: 'POST',
         body: formData,
       });
@@ -93,3 +95,4 @@ function App() {
 }
 
 export default App;
+
