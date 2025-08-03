@@ -167,6 +167,13 @@ function App() {
                   ))}
                 </div>
               </div>
+            )} h-12 rounded border"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
             )}
             
             {/* Features */}
