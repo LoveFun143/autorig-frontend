@@ -58,61 +58,75 @@ function App() {
     setProcessing(false);
   };
 
-  const renderAnalysisDetails = () => {
-    if (!analysisResults) return null;
-    
-    const { basicInfo, colorAnalysis, complexityScore, shapeDetection, styleClassification, detailLevel } = analysisResults;
-    
-    return (
-      <div style={{
-        backgroundColor: '#f8f9fa',
-        padding: '15px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        textAlign: 'left',
-        fontSize: '14px'
-      }}>
-        <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>🔍 Real-Time Image Analysis</h4>
+  // src/App.js - Updated renderAnalysisDetails function
+const renderAnalysisDetails = () => {
+  if (!analysisResults) return null;
+  
+  const { basicInfo, colorAnalysis, complexityScore, objectDetections, characterFeatures, trueRecognition } = analysisResults;
+  
+  return (
+    <div style={{
+      backgroundColor: '#f8f9fa',
+      padding: '15px',
+      borderRadius: '8px',
+      marginBottom: '20px',
+      textAlign: 'left',
+      fontSize: '14px'
+    }}>
+      <h4 style={{ margin: '0 0 10px 0', color: '#333' }}>🧠 TRUE AI Recognition Results</h4>
+      
+      {trueRecognition && (
+        <div style={{ backgroundColor: '#e7f3ff', padding: '10px', borderRadius: '5px', marginBottom: '15px' }}>
+          <strong>🎯 ACTUAL DETECTIONS:</strong><br/>
+          <strong>Objects:</strong> {trueRecognition.detectedObjects.join(', ') || 'None'}<br/>
+          <strong>Character Type:</strong> {trueRecognition.characterType}<br/>
+          <strong>Style:</strong> {trueRecognition.styleDetected}<br/>
+          <strong>Special Features:</strong> {trueRecognition.specialFeatures.join(', ') || 'None'}<br/>
+          <strong>AI Confidence:</strong> {Math.round(trueRecognition.confidence * 100)}%
+        </div>
+      )}
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+        <div>
+          <strong>📏 Image Info:</strong><br/>
+          {basicInfo.width}×{basicInfo.height} ({basicInfo.resolution})<br/>
+          Type: {basicInfo.isPortrait ? 'Portrait' : basicInfo.isLandscape ? 'Landscape' : 'Square'}
+        </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
-          <div>
-            <strong>📏 Image Info:</strong><br/>
-            {basicInfo.width}×{basicInfo.height} ({basicInfo.resolution})<br/>
-            Type: {basicInfo.isPortrait ? 'Portrait' : basicInfo.isLandscape ? 'Landscape' : 'Square'}
-          </div>
-          
-          <div>
-            <strong>🎨 Colors:</strong><br/>
-            Complexity: {colorAnalysis.colorComplexity}<br/>
-            Brightness: {colorAnalysis.isDark ? 'Dark' : colorAnalysis.isBright ? 'Bright' : 'Normal'}
-          </div>
-          
-          <div>
-            <strong>🔍 Detail Level:</strong><br/>
-            Level: {detailLevel.level}<br/>
-            Score: {detailLevel.score}/{detailLevel.maxScore}
-          </div>
-          
-          <div>
-            <strong>🎭 Style:</strong><br/>
-            {styleClassification.style} ({Math.round(styleClassification.confidence * 100)}%)
-          </div>
-          
-          <div>
-            <strong>🔺 Shapes Detected:</strong><br/>
-            Triangular: {shapeDetection.triangularRegions}<br/>
-            Circular: {shapeDetection.circularRegions}
-          </div>
-          
-          <div>
-            <strong>⚡ Complexity:</strong><br/>
-            Score: {Math.round(complexityScore.complexityScore)}<br/>
-            {complexityScore.isHighlyDetailed ? 'Highly Detailed' : complexityScore.isDetailed ? 'Detailed' : 'Simple'}
-          </div>
+        <div>
+          <strong>🎨 Colors:</strong><br/>
+          Complexity: {colorAnalysis.colorComplexity}<br/>
+          Brightness: {colorAnalysis.isDark ? 'Dark' : colorAnalysis.isBright ? 'Bright' : 'Normal'}
+        </div>
+        
+        <div>
+          <strong>👥 People Detected:</strong><br/>
+          Count: {objectDetections?.people?.length || 0}<br/>
+          {objectDetections?.people?.[0] && `Confidence: ${Math.round(objectDetections.people[0].confidence * 100)}%`}
+        </div>
+        
+        <div>
+          <strong>👕 Clothing Detected:</strong><br/>
+          Items: {objectDetections?.clothing?.length || 0}<br/>
+          {objectDetections?.clothing?.map(c => c.type).join(', ') || 'None'}
+        </div>
+        
+        <div>
+          <strong>🎭 Style Analysis:</strong><br/>
+          {characterFeatures?.animeFeatures?.hasAnimeStyle ? 'Anime Style' : 'Other Style'}<br/>
+          {characterFeatures?.animeFeatures?.animeConfidence && 
+            `(${Math.round(characterFeatures.animeFeatures.animeConfidence * 100)}%)`}
+        </div>
+        
+        <div>
+          <strong>⚡ Complexity:</strong><br/>
+          Score: {Math.round(complexityScore.complexityScore)}<br/>
+          {complexityScore.isHighlyDetailed ? 'Highly Detailed' : complexityScore.isDetailed ? 'Detailed' : 'Simple'}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   return (
     <div style={{padding: '20px', textAlign: 'center', maxWidth: '1000px', margin: '0 auto'}}>
@@ -199,3 +213,4 @@ function App() {
 }
 
 export default App;
+
