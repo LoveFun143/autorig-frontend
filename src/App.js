@@ -1,4 +1,43 @@
-// src/App.js
+  const renderAnalysisDetails = () => {
+    if (!analysisResults) return null;
+    
+    const { basicInfo = {}, colorAnalysis = {}, features = {}, quality = {}, suggestions = [] } = analysisResults;
+    
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6 mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Analysis Details</h3>
+          <button
+            onClick={() => setShowAnalysisDetails(!showAnalysisDetails)}
+            className="text-blue-500 hover:text-blue-700"
+          >
+            {showAnalysisDetails ? 'Hide' : 'Show'} Details
+          </button>
+        </div>
+        
+        {showAnalysisDetails && (
+          <div className="space-y-4">
+            {/* Basic Info */}
+            {basicInfo && (
+              <div>
+                <h4 className="font-medium mb-2">Image Info</h4>
+                <p className="text-sm text-gray-600">
+                  Dimensions: {basicInfo.width || 'N/A'} × {basicInfo.height || 'N/A'}px | 
+                  Aspect: {basicInfo.aspectRatio || 'N/A'} | 
+                  Format: {basicInfo.format || 'N/A'}
+                </p>
+              </div>
+            )}
+            
+            {/* Color Analysis */}
+            {colorAnalysis?.dominantColors && (
+              <div>
+                <h4 className="font-medium mb-2">Color Palette</h4>
+                <div className="flex gap-2">
+                  {colorAnalysis.dominantColors.map((color, i) => (
+                    <div
+                      key={i}
+                      className="w-12// src/App.js
 import React, { useState } from 'react';
 import ImageUploader from './components/ImageUploader';
 import ImageAnalyzer from './components/ImageAnalyzer';
@@ -16,7 +55,11 @@ function App() {
   const handleImageUpload = async (imageFile) => {
     setProcessing(true);
     setError(null);
-    setUploadedImage(imageFile);
+    
+    // Create object URL for the image
+    const imageUrl = URL.createObjectURL(imageFile);
+    setUploadedImage(imageUrl);
+    
     setAnalysisResults(null);
     setSegmentedLayers(null);
     setRiggedModel(null);
@@ -47,9 +90,21 @@ function App() {
       
       const result = await response.json();
       console.log('📦 Backend response:', result);
-      setSegmentedLayers(result.layers);
-      setRiggedModel(result.riggedModel);
       
+      // If backend doesn't return layers, use the frontend-generated ones
+      const layers = result.layers || frontendAnalysis.layers;
+      const riggedModel = result.riggedModel || {
+        layers: frontendAnalysis.layers,
+        animations: ['blink', 'smile', 'headTurn', 'wave', 'earTwitch'],
+        skeleton: frontendAnalysis.characterFeatures?.facialFeatures,
+        imageUrl: imageUrl  // Add the image URL to the rigged model
+      };
+      
+      setSegmentedLayers(layers);
+      setRiggedModel(riggedModel);
+      
+      console.log('📋 Final layers:', layers);
+      console.log('🎮 Final rigged model:', riggedModel);
       console.log('✅ Complete processing finished!');
       
     } catch (error) {
@@ -63,7 +118,13 @@ function App() {
   const renderAnalysisDetails = () => {
     if (!analysisResults) return null;
     
-    const { basicInfo, colorAnalysis, features, quality, suggestions } = analysisResults;
+    const { 
+      basicInfo = {}, 
+      colorAnalysis = {}, 
+      features = {}, 
+      quality = {}, 
+      suggestions = [] 
+    } = analysisResults;
     
     return (
       <div className="bg-white rounded-lg shadow-md p-6 mb-4">
@@ -80,65 +141,79 @@ function App() {
         {showAnalysisDetails && (
           <div className="space-y-4">
             {/* Basic Info */}
-            <div>
-              <h4 className="font-medium mb-2">Image Info</h4>
-              <p className="text-sm text-gray-600">
-                Dimensions: {basicInfo.width} × {basicInfo.height}px | 
-                Aspect: {basicInfo.aspectRatio} | 
-                Format: {basicInfo.format}
-              </p>
-            </div>
+            {basicInfo && Object.keys(basicInfo).length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Image Info</h4>
+                <p className="text-sm text-gray-600">
+                  Dimensions: {basicInfo.width || 'N/A'} × {basicInfo.height || 'N/A'}px | 
+                  Aspect: {basicInfo.aspectRatio || 'N/A'} | 
+                  Format: {basicInfo.format || 'N/A'}
+                </p>
+              </div>
+            )}
             
             {/* Color Analysis */}
-            <div>
-              <h4 className="font-medium mb-2">Color Palette</h4>
-              <div className="flex gap-2">
-                {colorAnalysis.dominantColors.map((color, i) => (
-                  <div
-                    key={i}
-                    className="w-12 h-12 rounded border"
-                    style={{ backgroundColor: color }}
-                    title={color}
-                  />
-                ))}
+            {colorAnalysis?.dominantColors && colorAnalysis.dominantColors.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Color Palette</h4>
+                <div className="flex gap-2">
+                  {colorAnalysis.dominantColors.map((color, i) => (
+                    <div
+                      key={i}
+                      className="w-12 h-12 rounded border"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Features */}
-            <div>
-              <h4 className="font-medium mb-2">Detected Features</h4>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(features).map(([key, value]) => (
-                  value && (
-                    <span key={key} className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
-                      {key.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                  )
-                ))}
+            {features && Object.keys(features).length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Detected Features</h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(features).map(([key, value]) => (
+                    value && (
+                      <span key={key} className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
+                        {key.replace(/([A-Z])/g, ' $1').trim()}
+                      </span>
+                    )
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Quality Metrics */}
-            <div>
-              <h4 className="font-medium mb-2">Quality Metrics</h4>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span>Overall Score:</span>
-                  <span className="font-medium">{quality.score}/100</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Clarity:</span>
-                  <span>{quality.clarity}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Lighting:</span>
-                  <span>{quality.lighting}</span>
+            {quality && Object.keys(quality).length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">Quality Metrics</h4>
+                <div className="space-y-1">
+                  {quality.score && (
+                    <div className="flex justify-between text-sm">
+                      <span>Overall Score:</span>
+                      <span className="font-medium">{quality.score}/100</span>
+                    </div>
+                  )}
+                  {quality.clarity && (
+                    <div className="flex justify-between text-sm">
+                      <span>Clarity:</span>
+                      <span>{quality.clarity}</span>
+                    </div>
+                  )}
+                  {quality.lighting && (
+                    <div className="flex justify-between text-sm">
+                      <span>Lighting:</span>
+                      <span>{quality.lighting}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
             
             {/* Suggestions */}
-            {suggestions.length > 0 && (
+            {suggestions && suggestions.length > 0 && (
               <div>
                 <h4 className="font-medium mb-2">Suggestions</h4>
                 <ul className="list-disc list-inside text-sm text-gray-600">
