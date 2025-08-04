@@ -447,7 +447,7 @@ class ImageProcessor {
     // Define animation keyframes for different layer types
     return {
       blink: {
-        layers: ['eyes'],
+        layers: ['eyes', 'left_eye', 'right_eye', 'anime_eyes', 'left_eyelid', 'right_eyelid'],
         keyframes: [
           { time: 0, scaleY: 1 },
           { time: 0.1, scaleY: 0.1 },
@@ -456,7 +456,7 @@ class ImageProcessor {
         duration: 200
       },
       smile: {
-        layers: ['mouth'],
+        layers: ['mouth'],  // Only animate mouth, not face or forehead
         keyframes: [
           { time: 0, scaleY: 1, translateY: 0 },
           { time: 0.5, scaleY: 1.2, translateY: -2 },
@@ -465,29 +465,29 @@ class ImageProcessor {
         duration: 500
       },
       headTurn: {
-        layers: ['head', 'face', 'eyes', 'mouth', 'hair_front'],
+        layers: ['head', 'face', 'face_base', 'left_eye', 'right_eye', 'anime_eyes', 'mouth', 'nose', 'hair_front'],
         keyframes: [
-          { time: 0, rotateY: 0 },
-          { time: 0.5, rotateY: 15 },
-          { time: 1, rotateY: 0 }
+          { time: 0, rotate: 0 },
+          { time: 0.5, rotate: 5 },
+          { time: 1, rotate: 0 }
         ],
         duration: 1000
       },
       wave: {
-        layers: ['body'],
+        layers: ['left_arm', 'right_arm', 'left_hand', 'right_hand'],
         keyframes: [
           { time: 0, rotate: 0 },
-          { time: 0.25, rotate: -5 },
-          { time: 0.75, rotate: 5 },
+          { time: 0.25, rotate: -15 },
+          { time: 0.75, rotate: 15 },
           { time: 1, rotate: 0 }
         ],
         duration: 800
       },
       idle: {
-        layers: ['body', 'head'],
+        layers: ['body', 'torso', 'shirt', 'pants'],
         keyframes: [
           { time: 0, translateY: 0 },
-          { time: 0.5, translateY: -3 },
+          { time: 0.5, translateY: -2 },
           { time: 1, translateY: 0 }
         ],
         duration: 2000
