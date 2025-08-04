@@ -57,7 +57,14 @@ function App() {
       // Process the image client-side to generate actual layer images
       console.log('🎨 Starting client-side image processing...');
       const processor = new ImageProcessor();
-      const processedData = await processor.processImage(imageUrl, result.layers || [
+      
+      // Ensure layers have proper type field
+      const layersToProcess = result.layers?.map((layer, index) => ({
+        ...layer,
+        type: layer.type || layer.name || ['background', 'body', 'head', 'hair_back', 'face', 'eyes', 'mouth', 'hair_front'][index] || `layer_${index}`,
+        id: layer.id || `layer_${index}`,
+        zIndex: layer.zIndex !== undefined ? layer.zIndex : index
+      })) || [
         { id: 'bg', type: 'background', zIndex: 0 },
         { id: 'body', type: 'body', zIndex: 1 },
         { id: 'head', type: 'head', zIndex: 2 },
@@ -66,7 +73,11 @@ function App() {
         { id: 'eyes', type: 'eyes', zIndex: 5 },
         { id: 'mouth', type: 'mouth', zIndex: 6 },
         { id: 'hair_front', type: 'hair_front', zIndex: 7 }
-      ]);
+      ];
+      
+      console.log('📋 Layers to process:', layersToProcess);
+      
+      const processedData = await processor.processImage(imageUrl, layersToProcess);
       
       // Use processed layers with actual image data
       const layers = processedData.layers;
