@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ImageUploader from './components/ImageUploader';
 import ImageAnalyzer from './components/ImageAnalyzer';
 import CharacterPreview from './components/CharacterPreview';
-import ImageProcessor from './components/ImageProcessor';
+import AdvancedSegmentation from './components/AdvancedSegmentation';
 
 function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -52,51 +52,34 @@ function App() {
       
       const result = await response.json();
       console.log('📦 Backend response:', result);
-      console.log('📦 Layer details:', result.layers?.map(l => ({ id: l.id, type: l.type, hasData: !!l.data })));
       
-      // Process the image client-side to generate actual layer images
-      console.log('🎨 Starting client-side image processing...');
-      const processor = new ImageProcessor();
+      // Step 3: Use Advanced AI Segmentation for real body part separation
+      console.log('🤖 Starting AI-powered segmentation...');
+      const segmenter = new AdvancedSegmentation();
+      const segmentationResult = await segmenter.segmentCharacter(imageUrl);
       
-      // Ensure layers have proper type field
-      const layersToProcess = result.layers?.map((layer, index) => ({
-        ...layer,
-        type: layer.type || layer.name || ['background', 'body', 'head', 'hair_back', 'face', 'eyes', 'mouth', 'hair_front'][index] || `layer_${index}`,
-        id: layer.id || `layer_${index}`,
-        zIndex: layer.zIndex !== undefined ? layer.zIndex : index
-      })) || [
-        { id: 'bg', type: 'background', zIndex: 0 },
-        { id: 'body', type: 'body', zIndex: 1 },
-        { id: 'head', type: 'head', zIndex: 2 },
-        { id: 'hair_back', type: 'hair_back', zIndex: 3 },
-        { id: 'face', type: 'face', zIndex: 4 },
-        { id: 'eyes', type: 'eyes', zIndex: 5 },
-        { id: 'mouth', type: 'mouth', zIndex: 6 },
-        { id: 'hair_front', type: 'hair_front', zIndex: 7 }
-      ];
+      // Use the AI-segmented layers
+      const layers = segmentationResult.layers;
       
-      console.log('📋 Layers to process:', layersToProcess);
-      
-      const processedData = await processor.processImage(imageUrl, layersToProcess);
-      
-      // Use processed layers with actual image data
-      const layers = processedData.layers;
-      
+      // Create the rigged model with AI segmentation data
       const riggedModel = {
         ...result.riggedModel,
         layers: layers,
-        animations: processedData.animations,
-        dimensions: processedData.dimensions,
+        animations: segmentationResult.animations,
+        skeleton: segmentationResult.skeleton,
+        dimensions: {
+          width: frontendAnalysis.basicInfo.width,
+          height: frontendAnalysis.basicInfo.height
+        },
         imageUrl: imageUrl
       };
       
       setSegmentedLayers(layers);
       setRiggedModel(riggedModel);
       
-      console.log('📋 Final layers with images:', layers);
-      console.log('🎮 Final rigged model:', riggedModel);
-      console.log('🖼️ Image URL:', imageUrl);
-      console.log('✅ Complete processing finished!');
+      console.log('📋 AI-segmented layers:', layers);
+      console.log('🎮 Final rigged model with skeleton:', riggedModel);
+      console.log('✅ Complete AI segmentation finished!');
       
     } catch (error) {
       console.error('Processing failed:', error);
@@ -253,7 +236,7 @@ function App() {
               />
               
               {/* Fallback Image Preview if CharacterPreview doesn't show image */}
-              {uploadedImage && !processing && (
+              {uploadedImage && !processing && segmentedLayers && (
                 <div className="bg-white rounded-lg shadow-md p-4 text-center">
                   <h3 className="text-sm text-gray-600 mb-2">Original Image:</h3>
                   <img 
