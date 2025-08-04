@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ImageUploader from './components/ImageUploader';
 import ImageAnalyzer from './components/ImageAnalyzer';
 import CharacterPreview from './components/CharacterPreview';
-import AdvancedSegmentation from './components/AdvancedSegmentation';
+import UnifiedCharacterProcessor from './components/UnifiedCharacterProcessor';
 
 function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -53,33 +53,35 @@ function App() {
       const result = await response.json();
       console.log('📦 Backend response:', result);
       
-      // Step 3: Use Advanced AI Segmentation for real body part separation
-      console.log('🤖 Starting AI-powered segmentation...');
-      const segmenter = new AdvancedSegmentation();
-      const segmentationResult = await segmenter.segmentCharacter(imageUrl);
+      // Step 3: Use Unified Character Processor for better transparency & multi-pose handling
+      console.log('🤖 Starting unified character processing...');
+      const processor = new UnifiedCharacterProcessor();
+      const processingResult = await processor.processCharacter(imageUrl);
       
-      // Use the AI-segmented layers
-      const layers = segmentationResult.layers;
+      // Use the processed layers
+      const layers = processingResult.layers;
       
-      // Create the rigged model with AI segmentation data
+      // Create the rigged model with processed data
       const riggedModel = {
         ...result.riggedModel,
         layers: layers,
-        animations: segmentationResult.animations,
-        skeleton: segmentationResult.skeleton,
+        animations: processingResult.animations,
+        skeleton: processingResult.skeleton,
         dimensions: {
           width: frontendAnalysis.basicInfo.width,
           height: frontendAnalysis.basicInfo.height
         },
-        imageUrl: imageUrl
+        imageUrl: imageUrl,
+        metadata: processingResult.metadata
       };
       
       setSegmentedLayers(layers);
       setRiggedModel(riggedModel);
       
-      console.log('📋 AI-segmented layers:', layers);
-      console.log('🎮 Final rigged model with skeleton:', riggedModel);
-      console.log('✅ Complete AI segmentation finished!');
+      console.log('📋 Processed layers:', layers);
+      console.log('🎮 Final rigged model:', riggedModel);
+      console.log('📊 Processing metadata:', processingResult.metadata);
+      console.log('✅ Character processing complete!');
       
     } catch (error) {
       console.error('Processing failed:', error);
