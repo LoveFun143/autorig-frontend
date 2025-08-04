@@ -6,33 +6,40 @@ class ImageProcessor {
   }
 
   async processImage(imageUrl, layers) {
-    console.log('🎨 Starting image processing...');
+    console.log('🎨 Starting advanced image segmentation...');
     
     // Load the image
     const img = await this.loadImage(imageUrl);
     this.canvas.width = img.width;
     this.canvas.height = img.height;
     
-    // Process each layer
+    // First, extract the character from background
+    const characterData = await this.extractCharacter(img);
+    
+    // Process each layer with actual segmentation
     const processedLayers = [];
     
     for (const layer of layers) {
-      console.log(`🔧 Processing layer: ${layer.type}`);
+      console.log(`🔧 Segmenting layer: ${layer.type}`);
       
-      const layerData = await this.createLayer(img, layer);
+      const layerData = await this.segmentLayer(img, layer.type, characterData);
       processedLayers.push({
         ...layer,
         imageData: layerData.url,
         canvas: layerData.canvas,
         width: img.width,
-        height: img.height
+        height: img.height,
+        hasContent: layerData.hasContent
       });
+      
+      console.log(`✅ Layer ${layer.type} segmented: ${layerData.hasContent ? 'has content' : 'empty'}`);
     }
     
     // Create animation data
     const animations = this.createAnimations(processedLayers);
     
-    console.log('✅ Image processing complete!');
+    console.log('✅ Image segmentation complete!');
+    console.log(`📊 Created ${processedLayers.filter(l => l.hasContent).length} layers with content`);
     
     return {
       layers: processedLayers,
@@ -54,135 +61,299 @@ class ImageProcessor {
     });
   }
 
-  async createLayer(img, layerInfo) {
+  async extractCharacter(img) {
+    // Extract character from background using edge detection and color analysis
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Simple background removal based on corners
+    const bgColors = this.getBackgroundColors(data, canvas.width, canvas.height);
+    
+    // Create mask for character
+    const mask = new Uint8ClampedArray(canvas.width * canvas.height);
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const pixelIndex = i / 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      // Check if pixel is similar to background
+      let isBackground = false;
+      for (const bgColor of bgColors) {
+        const diff = Math.abs(r - bgColor.r) + Math.abs(g - bgColor.g) + Math.abs(b - bgColor.b);
+        if (diff < 60) { // Threshold for background similarity
+          isBackground = true;
+          break;
+        }
+      }
+      
+      mask[pixelIndex] = isBackground ? 0 : 255;
+    }
+    
+    // Apply morphological operations to clean up the mask
+    this.cleanMask(mask, canvas.width, canvas.height);
+    
+    return {
+      mask: mask,
+      bounds: this.findBounds(mask, canvas.width, canvas.height)
+    };
+  }
+
+  getBackgroundColors(data, width, height) {
+    const colors = [];
+    const sampleSize = 10;
+    
+    // Sample corners
+    const corners = [
+      { x: 0, y: 0 }, // Top-left
+      { x: width - 1, y: 0 }, // Top-right
+      { x: 0, y: height - 1 }, // Bottom-left
+      { x: width - 1, y: height - 1 } // Bottom-right
+    ];
+    
+    for (const corner of corners) {
+      let r = 0, g = 0, b = 0, count = 0;
+      
+      for (let dx = 0; dx < sampleSize && corner.x + dx < width; dx++) {
+        for (let dy = 0; dy < sampleSize && corner.y + dy < height; dy++) {
+          const idx = ((corner.y + dy) * width + (corner.x + dx)) * 4;
+          r += data[idx];
+          g += data[idx + 1];
+          b += data[idx + 2];
+          count++;
+        }
+      }
+      
+      colors.push({
+        r: Math.round(r / count),
+        g: Math.round(g / count),
+        b: Math.round(b / count)
+      });
+    }
+    
+    return colors;
+  }
+
+  cleanMask(mask, width, height) {
+    // Simple erosion and dilation to clean up the mask
+    const temp = new Uint8ClampedArray(mask);
+    
+    // Erosion
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < width - 1; x++) {
+        const idx = y * width + x;
+        if (mask[idx] === 255) {
+          // Check neighbors
+          let neighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (mask[(y + dy) * width + (x + dx)] === 255) {
+                neighbors++;
+              }
+            }
+          }
+          if (neighbors < 5) {
+            temp[idx] = 0;
+          }
+        }
+      }
+    }
+    
+    // Copy back
+    for (let i = 0; i < mask.length; i++) {
+      mask[i] = temp[i];
+    }
+  }
+
+  findBounds(mask, width, height) {
+    let minX = width, maxX = 0, minY = height, maxY = 0;
+    
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (mask[y * width + x] === 255) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+    
+    return {
+      x: minX,
+      y: minY,
+      width: maxX - minX,
+      height: maxY - minY
+    };
+  }
+
+  async segmentLayer(img, layerType, characterData) {
     const layerCanvas = document.createElement('canvas');
     layerCanvas.width = img.width;
     layerCanvas.height = img.height;
     const layerCtx = layerCanvas.getContext('2d');
     
-    // Clear the canvas
+    // Clear the canvas (transparent background)
     layerCtx.clearRect(0, 0, img.width, img.height);
     
-    // Different processing based on layer type
-    switch (layerInfo.type) {
-      case 'background':
-        // Full image as background
-        layerCtx.drawImage(img, 0, 0);
-        this.applyBlur(layerCtx, img.width, img.height, 3);
-        break;
-        
-      case 'body':
-        // Main body area (middle section)
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'body');
-        break;
-        
-      case 'head':
-        // Head area (top section)
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'head');
-        break;
-        
-      case 'face':
-        // Face area (center of head)
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'face');
-        break;
-        
-      case 'eyes':
-        // Eyes area
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'eyes');
-        break;
-        
-      case 'mouth':
-        // Mouth area
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'mouth');
-        break;
-        
-      case 'hair_front':
-        // Front hair layer
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'hair_front');
-        break;
-        
-      case 'accessories':
-        // Any accessories
-        layerCtx.drawImage(img, 0, 0);
-        this.maskRegion(layerCtx, img.width, img.height, 'accessories');
-        break;
-        
-      default:
-        // Default: use full image
-        layerCtx.drawImage(img, 0, 0);
-    }
+    // Draw the original image
+    layerCtx.drawImage(img, 0, 0);
     
-    return {
-      canvas: layerCanvas,
-      url: layerCanvas.toDataURL('image/png')
-    };
-  }
-
-  maskRegion(ctx, width, height, region) {
-    // Create masks for different regions
-    const imageData = ctx.getImageData(0, 0, width, height);
+    // Get image data
+    const imageData = layerCtx.getImageData(0, 0, img.width, img.height);
     const data = imageData.data;
     
-    // Define regions as percentages of image dimensions
-    const regions = {
-      body: { top: 0.4, bottom: 1, left: 0.2, right: 0.8 },
-      head: { top: 0, bottom: 0.4, left: 0.25, right: 0.75 },
-      face: { top: 0.15, bottom: 0.35, left: 0.35, right: 0.65 },
-      eyes: { top: 0.18, bottom: 0.25, left: 0.35, right: 0.65 },
-      mouth: { top: 0.28, bottom: 0.32, left: 0.4, right: 0.6 },
-      hair_front: { top: 0, bottom: 0.25, left: 0.25, right: 0.75 },
-      accessories: { top: 0, bottom: 0.15, left: 0.3, right: 0.7 }
-    };
+    // Define regions based on character bounds and typical proportions
+    const bounds = characterData.bounds;
+    const regions = this.calculateRegions(bounds, layerType);
     
-    const r = regions[region] || { top: 0, bottom: 1, left: 0, right: 1 };
+    // Create a mask for this specific layer
+    let hasContent = false;
     
-    // Apply mask with soft edges
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
+    for (let y = 0; y < img.height; y++) {
+      for (let x = 0; x < img.width; x++) {
+        const idx = (y * img.width + x) * 4;
         
-        const normalizedX = x / width;
-        const normalizedY = y / height;
+        // Check if pixel is within character mask
+        const maskIdx = y * img.width + x;
+        if (characterData.mask[maskIdx] === 0) {
+          // Outside character, make transparent
+          data[idx + 3] = 0;
+          continue;
+        }
         
-        // Check if pixel is outside the region
-        if (normalizedX < r.left || normalizedX > r.right ||
-            normalizedY < r.top || normalizedY > r.bottom) {
-          // Make transparent
+        // Check if pixel is within this layer's region
+        if (!this.isInRegion(x, y, regions)) {
+          // Outside this layer's region, make transparent
           data[idx + 3] = 0;
         } else {
-          // Soft edge fade
-          const fadeDistance = 0.05;
-          let alpha = 1;
+          // This layer has content
+          hasContent = true;
           
-          // Calculate distance from edges
-          const distFromLeft = (normalizedX - r.left) / fadeDistance;
-          const distFromRight = (r.right - normalizedX) / fadeDistance;
-          const distFromTop = (normalizedY - r.top) / fadeDistance;
-          const distFromBottom = (r.bottom - normalizedY) / fadeDistance;
-          
-          // Apply fade
-          alpha = Math.min(alpha, distFromLeft, distFromRight, distFromTop, distFromBottom);
-          alpha = Math.max(0, Math.min(1, alpha));
-          
-          data[idx + 3] = Math.floor(data[idx + 3] * alpha);
+          // Apply soft edge fade for smoother transitions
+          const fade = this.calculateEdgeFade(x, y, regions);
+          data[idx + 3] = Math.floor(data[idx + 3] * fade);
         }
       }
     }
     
-    ctx.putImageData(imageData, 0, 0);
+    // Put the modified image data back
+    layerCtx.putImageData(imageData, 0, 0);
+    
+    // Generate PNG data URL
+    const url = layerCanvas.toDataURL('image/png');
+    
+    return {
+      canvas: layerCanvas,
+      url: url,
+      hasContent: hasContent
+    };
   }
 
-  applyBlur(ctx, width, height, radius) {
-    // Simple box blur
-    ctx.filter = `blur(${radius}px)`;
-    const imageData = ctx.getImageData(0, 0, width, height);
-    ctx.putImageData(imageData, 0, 0);
+  calculateRegions(bounds, layerType) {
+    // Calculate regions based on typical character proportions
+    const cx = bounds.x + bounds.width / 2;
+    const cy = bounds.y + bounds.height / 2;
+    const w = bounds.width;
+    const h = bounds.height;
+    
+    const regions = {
+      background: {
+        x: 0, y: 0, width: 9999, height: 9999, exclude: true
+      },
+      body: {
+        x: bounds.x + w * 0.2,
+        y: bounds.y + h * 0.35,
+        width: w * 0.6,
+        height: h * 0.65
+      },
+      head: {
+        x: bounds.x + w * 0.15,
+        y: bounds.y,
+        width: w * 0.7,
+        height: h * 0.4
+      },
+      face: {
+        x: bounds.x + w * 0.25,
+        y: bounds.y + h * 0.1,
+        width: w * 0.5,
+        height: h * 0.25
+      },
+      eyes: {
+        x: bounds.x + w * 0.3,
+        y: bounds.y + h * 0.12,
+        width: w * 0.4,
+        height: h * 0.08
+      },
+      mouth: {
+        x: bounds.x + w * 0.35,
+        y: bounds.y + h * 0.22,
+        width: w * 0.3,
+        height: h * 0.06
+      },
+      hair_front: {
+        x: bounds.x + w * 0.1,
+        y: bounds.y,
+        width: w * 0.8,
+        height: h * 0.25
+      },
+      hair_back: {
+        x: bounds.x + w * 0.05,
+        y: bounds.y,
+        width: w * 0.9,
+        height: h * 0.3
+      },
+      accessories: {
+        x: bounds.x,
+        y: bounds.y,
+        width: w,
+        height: h * 0.15
+      }
+    };
+    
+    return regions[layerType] || regions.body;
+  }
+
+  isInRegion(x, y, region) {
+    if (region.exclude) {
+      return false;
+    }
+    
+    return x >= region.x && 
+           x <= region.x + region.width &&
+           y >= region.y && 
+           y <= region.y + region.height;
+  }
+
+  calculateEdgeFade(x, y, region) {
+    if (region.exclude) return 0;
+    
+    const fadeDistance = 10; // Pixels to fade
+    
+    // Calculate distance from edges
+    const distFromLeft = x - region.x;
+    const distFromRight = (region.x + region.width) - x;
+    const distFromTop = y - region.y;
+    const distFromBottom = (region.y + region.height) - y;
+    
+    // Find minimum distance to any edge
+    const minDist = Math.min(distFromLeft, distFromRight, distFromTop, distFromBottom);
+    
+    if (minDist >= fadeDistance) {
+      return 1; // Fully opaque
+    } else if (minDist <= 0) {
+      return 0; // Fully transparent
+    } else {
+      // Smooth fade
+      return minDist / fadeDistance;
+    }
   }
 
   createAnimations(layers) {
