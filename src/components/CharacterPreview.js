@@ -195,14 +195,20 @@ const CharacterPreview = ({
 
   // Play animation
   const playAnimation = (animName) => {
+    // If clicking the same animation, stop it
+    if (currentAnimation === animName) {
+      setCurrentAnimation(null);
+      return;
+    }
+    
     setCurrentAnimation(animName);
     
-    // Stop animation after duration
+    // Stop animation after duration (play once)
     if (riggedModel?.animations?.[animName]) {
       clearTimeout(animationRef.current);
       animationRef.current = setTimeout(() => {
         setCurrentAnimation(null);
-      }, riggedModel.animations[animName].duration);
+      }, riggedModel.animations[animName].duration * 2); // Play twice then stop
     }
   };
 
