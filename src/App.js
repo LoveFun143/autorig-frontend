@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import ImageUploader from './components/ImageUploader';
 import ImageAnalyzer from './components/ImageAnalyzer';
 import CharacterPreview from './components/CharacterPreview';
-import UnifiedCharacterProcessor from './components/UnifiedCharacterProcessor';
+import PreciseBodyTracer from './components/PreciseBodyTracer';
 
 function App() {
   const [uploadedImage, setUploadedImage] = useState(null);
@@ -53,35 +53,35 @@ function App() {
       const result = await response.json();
       console.log('📦 Backend response:', result);
       
-      // Step 3: Use Unified Character Processor for better transparency & multi-pose handling
-      console.log('🤖 Starting unified character processing...');
-      const processor = new UnifiedCharacterProcessor();
-      const processingResult = await processor.processCharacter(imageUrl);
+      // Step 3: Use Precise Body Tracer for accurate body part detection
+      console.log('🤖 Starting precise body part detection and tracing...');
+      const tracer = new PreciseBodyTracer();
+      const tracingResult = await tracer.traceBodyParts(imageUrl);
       
-      // Use the processed layers
-      const layers = processingResult.layers;
+      // Use the precisely traced layers
+      const layers = tracingResult.layers;
       
-      // Create the rigged model with processed data
+      // Create the rigged model with traced body parts
       const riggedModel = {
         ...result.riggedModel,
         layers: layers,
-        animations: processingResult.animations,
-        skeleton: processingResult.skeleton,
+        animations: tracingResult.animations,
+        skeleton: tracingResult.skeleton,
         dimensions: {
           width: frontendAnalysis.basicInfo.width,
           height: frontendAnalysis.basicInfo.height
         },
         imageUrl: imageUrl,
-        metadata: processingResult.metadata
+        keypoints: tracingResult.keypoints
       };
       
       setSegmentedLayers(layers);
       setRiggedModel(riggedModel);
       
-      console.log('📋 Processed layers:', layers);
-      console.log('🎮 Final rigged model:', riggedModel);
-      console.log('📊 Processing metadata:', processingResult.metadata);
-      console.log('✅ Character processing complete!');
+      console.log('📋 Precisely traced layers:', layers);
+      console.log('🎮 Final rigged model with accurate skeleton:', riggedModel);
+      console.log('📍 Detected keypoints:', tracingResult.keypoints);
+      console.log('✅ Body part tracing complete!');
       
     } catch (error) {
       console.error('Processing failed:', error);
