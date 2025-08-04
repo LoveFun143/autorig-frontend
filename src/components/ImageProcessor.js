@@ -203,43 +203,41 @@ class ImageProcessor {
     // Clear the canvas (transparent background)
     layerCtx.clearRect(0, 0, img.width, img.height);
     
-    // Draw the original image
+    // For background, just return the full image
+    if (layerType === 'background') {
+      layerCtx.drawImage(img, 0, 0);
+      return {
+        canvas: layerCanvas,
+        url: layerCanvas.toDataURL('image/png'),
+        hasContent: true
+      };
+    }
+    
+    // For most layers, just return the full character with transparency
+    // This preserves all details while still creating separate layers
     layerCtx.drawImage(img, 0, 0);
     
     // Get image data
     const imageData = layerCtx.getImageData(0, 0, img.width, img.height);
     const data = imageData.data;
     
-    // Define regions based on character bounds and typical proportions
-    const bounds = characterData.bounds;
-    const regions = this.calculateRegions(bounds, layerType);
-    
-    // Create a mask for this specific layer
+    // Apply character mask to remove background
     let hasContent = false;
     
     for (let y = 0; y < img.height; y++) {
       for (let x = 0; x < img.width; x++) {
         const idx = (y * img.width + x) * 4;
+        const maskIdx = y * img.width + x;
         
         // Check if pixel is within character mask
-        const maskIdx = y * img.width + x;
         if (characterData.mask[maskIdx] === 0) {
           // Outside character, make transparent
           data[idx + 3] = 0;
-          continue;
-        }
-        
-        // Check if pixel is within this layer's region
-        if (!this.isInRegion(x, y, regions)) {
-          // Outside this layer's region, make transparent
-          data[idx + 3] = 0;
         } else {
-          // This layer has content
           hasContent = true;
-          
-          // Apply soft edge fade for smoother transitions
-          const fade = this.calculateEdgeFade(x, y, regions);
-          data[idx + 3] = Math.floor(data[idx + 3] * fade);
+          // Keep the pixel but apply layer-specific opacity
+          const opacity = this.getLayerOpacity(layerType);
+          data[idx + 3] = Math.floor(data[idx + 3] * opacity);
         }
       }
     }
@@ -255,6 +253,27 @@ class ImageProcessor {
       url: url,
       hasContent: hasContent
     };
+  }
+  
+  getLayerOpacity(layerType) {
+    // Different opacity levels for different layers to create depth
+    const opacities = {
+      'hair_back': 0.9,
+      'body': 1.0,
+      'torso': 1.0,
+      'face_base': 1.0,
+      'face': 1.0,
+      'eyes': 1.0,
+      'left_eye': 1.0,
+      'right_eye': 1.0,
+      'anime_eyes': 1.0,
+      'mouth': 1.0,
+      'nose': 1.0,
+      'hair_front': 1.0,
+      'accessories': 1.0
+    };
+    
+    return opacities[layerType] || 1.0;
   }
 
   calculateRegions(bounds, layerType) {
