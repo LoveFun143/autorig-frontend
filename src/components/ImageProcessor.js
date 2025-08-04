@@ -274,6 +274,12 @@ class ImageProcessor {
         width: w * 0.6,
         height: h * 0.65
       },
+      torso: {
+        x: bounds.x + w * 0.2,
+        y: bounds.y + h * 0.35,
+        width: w * 0.6,
+        height: h * 0.4
+      },
       head: {
         x: bounds.x + w * 0.15,
         y: bounds.y,
@@ -286,17 +292,47 @@ class ImageProcessor {
         width: w * 0.5,
         height: h * 0.25
       },
+      face_base: {
+        x: bounds.x + w * 0.25,
+        y: bounds.y + h * 0.1,
+        width: w * 0.5,
+        height: h * 0.25
+      },
       eyes: {
         x: bounds.x + w * 0.3,
         y: bounds.y + h * 0.12,
         width: w * 0.4,
         height: h * 0.08
       },
+      left_eye: {
+        x: bounds.x + w * 0.3,
+        y: bounds.y + h * 0.12,
+        width: w * 0.15,
+        height: h * 0.08
+      },
+      right_eye: {
+        x: bounds.x + w * 0.55,
+        y: bounds.y + h * 0.12,
+        width: w * 0.15,
+        height: h * 0.08
+      },
+      anime_eyes: {
+        x: bounds.x + w * 0.3,
+        y: bounds.y + h * 0.12,
+        width: w * 0.4,
+        height: h * 0.1
+      },
       mouth: {
         x: bounds.x + w * 0.35,
         y: bounds.y + h * 0.22,
         width: w * 0.3,
         height: h * 0.06
+      },
+      nose: {
+        x: bounds.x + w * 0.45,
+        y: bounds.y + h * 0.18,
+        width: w * 0.1,
+        height: h * 0.04
       },
       hair_front: {
         x: bounds.x + w * 0.1,
@@ -310,6 +346,30 @@ class ImageProcessor {
         width: w * 0.9,
         height: h * 0.3
       },
+      left_arm: {
+        x: bounds.x,
+        y: bounds.y + h * 0.35,
+        width: w * 0.25,
+        height: h * 0.35
+      },
+      right_arm: {
+        x: bounds.x + w * 0.75,
+        y: bounds.y + h * 0.35,
+        width: w * 0.25,
+        height: h * 0.35
+      },
+      left_leg: {
+        x: bounds.x + w * 0.2,
+        y: bounds.y + h * 0.65,
+        width: w * 0.25,
+        height: h * 0.35
+      },
+      right_leg: {
+        x: bounds.x + w * 0.55,
+        y: bounds.y + h * 0.65,
+        width: w * 0.25,
+        height: h * 0.35
+      },
       accessories: {
         x: bounds.x,
         y: bounds.y,
@@ -318,7 +378,15 @@ class ImageProcessor {
       }
     };
     
-    return regions[layerType] || regions.body;
+    // Default region for unknown layer types
+    const defaultRegion = {
+      x: bounds.x,
+      y: bounds.y,
+      width: w,
+      height: h
+    };
+    
+    return regions[layerType] || defaultRegion;
   }
 
   isInRegion(x, y, region) {
