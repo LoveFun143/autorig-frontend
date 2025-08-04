@@ -51,60 +51,89 @@ const CharacterPreview = ({
     
     // Set canvas size
     if (riggedModel?.dimensions) {
-      canvas.width = riggedModel.dimensions.width;
-      canvas.height = riggedModel.dimensions.height;
+      canvas.width = Math.min(riggedModel.dimensions.width, 800);
+      canvas.height = Math.min(riggedModel.dimensions.height, 800);
     }
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const drawFrame = () => {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw each visible layer
-    const drawLayers = async () => {
-      for (const layer of segmentedLayers) {
-        if (!layerVisibility[layer.id]) continue;
+      // Sort layers by zIndex
+      const sortedLayers = [...segmentedLayers].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      // Draw each visible layer
+      sortedLayers.forEach(layer => {
+        if (!layerVisibility[layer.id] || !layer.imageData) return;
 
         try {
           const img = new Image();
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = layer.imageData;
-          });
-
-          // Apply any transformations
-          ctx.save();
-          
-          if (currentAnimation && riggedModel?.animations?.[currentAnimation]) {
-            const anim = riggedModel.animations[currentAnimation];
-            if (anim.layers.includes(layer.type)) {
-              // Simple animation effect
-              const time = (Date.now() % anim.duration) / anim.duration;
-              const keyframe = anim.keyframes.find(k => k.time <= time) || anim.keyframes[0];
-              
-              if (keyframe.scaleY !== undefined) {
-                ctx.scale(1, keyframe.scaleY);
-                ctx.translate(0, canvas.height * (1 - keyframe.scaleY) / 2);
-              }
-              if (keyframe.translateY !== undefined) {
-                ctx.translate(0, keyframe.translateY);
-              }
-              if (keyframe.rotate !== undefined) {
-                ctx.translate(canvas.width / 2, canvas.height / 2);
-                ctx.rotate(keyframe.rotate * Math.PI / 180);
-                ctx.translate(-canvas.width / 2, -canvas.height / 2);
+          img.onload = () => {
+            ctx.save();
+            
+            // Apply animation transformations
+            if (currentAnimation && riggedModel?.animations?.[currentAnimation]) {
+              const anim = riggedModel.animations[currentAnimation];
+              if (anim.layers && anim.layers.includes(layer.type)) {
+                const now = Date.now();
+                const time = (now % anim.duration) / anim.duration;
+                
+                // Find the appropriate keyframe
+                let keyframe = anim.keyframes[0];
+                for (let i = 0; i < anim.keyframes.length - 1; i++) {
+                  if (time >= anim.keyframes[i].time && time <= anim.keyframes[i + 1].time) {
+                    // Simple interpolation between keyframes
+                    const t = (time - anim.keyframes[i].time) / (anim.keyframes[i + 1].time - anim.keyframes[i].time);
+                    const k1 = anim.keyframes[i];
+                    const k2 = anim.keyframes[i + 1];
+                    
+                    keyframe = {
+                      scaleY: k1.scaleY !== undefined ? k1.scaleY + (k2.scaleY - k1.scaleY) * t : 1,
+                      translateY: k1.translateY !== undefined ? k1.translateY + (k2.translateY - k1.translateY) * t : 0,
+                      rotate: k1.rotate !== undefined ? k1.rotate + (k2.rotate - k1.rotate) * t : 0
+                    };
+                    break;
+                  }
+                }
+                
+                // Apply transformations
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                
+                ctx.translate(centerX, centerY);
+                
+                if (keyframe.rotate !== undefined) {
+                  ctx.rotate(keyframe.rotate * Math.PI / 180);
+                }
+                
+                if (keyframe.scaleY !== undefined) {
+                  ctx.scale(1, keyframe.scaleY);
+                }
+                
+                if (keyframe.translateY !== undefined) {
+                  ctx.translate(0, keyframe.translateY);
+                }
+                
+                ctx.translate(-centerX, -centerY);
               }
             }
-          }
 
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          ctx.restore();
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+          };
+          img.src = layer.imageData;
         } catch (err) {
           console.error(`Failed to draw layer ${layer.id}:`, err);
         }
+      });
+
+      // Continue animation loop if animating
+      if (currentAnimation) {
+        requestAnimationFrame(drawFrame);
       }
     };
 
-    drawLayers();
+    drawFrame();
   }, [segmentedLayers, layerVisibility, currentAnimation, riggedModel, processing]);
 
   // Play animation
@@ -230,7 +259,7 @@ const CharacterPreview = ({
             </button>
           </div>
 
-          {showLayers && (
+          {showLayers && segmentedLayers && (
             <div className="space-y-2">
               {segmentedLayers.map(layer => (
                 <div 
@@ -240,17 +269,20 @@ const CharacterPreview = ({
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      checked={layerVisibility[layer.id]}
+                      checked={layerVisibility[layer.id] !== false}
                       onChange={() => toggleLayer(layer.id)}
                       className="w-4 h-4"
                     />
                     <span className="text-sm">
-                      {layer.type.replace(/_/g, ' ').charAt(0).toUpperCase() + 
-                       layer.type.replace(/_/g, ' ').slice(1)}
+                      {layer.type ? 
+                        layer.type.replace(/_/g, ' ').charAt(0).toUpperCase() + 
+                        layer.type.replace(/_/g, ' ').slice(1) : 
+                        `Layer ${layer.id}`
+                      }
                     </span>
                   </div>
                   <span className="text-xs text-gray-500">
-                    z: {layer.zIndex}
+                    z: {layer.zIndex !== undefined ? layer.zIndex : 0}
                   </span>
                 </div>
               ))}
@@ -269,7 +301,31 @@ const CharacterPreview = ({
           </div>
 
           {/* Export Button */}
-          <button className="w-full mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+          <button 
+            onClick={() => {
+              // Export functionality
+              const exportData = {
+                layers: segmentedLayers,
+                animations: riggedModel.animations,
+                dimensions: riggedModel.dimensions,
+                metadata: {
+                  exportDate: new Date().toISOString(),
+                  layerCount: segmentedLayers.length,
+                  animationCount: Object.keys(riggedModel.animations || {}).length
+                }
+              };
+              
+              // Download as JSON
+              const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'character-model.json';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="w-full mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
             📦 Export Model
           </button>
         </div>
